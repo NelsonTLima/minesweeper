@@ -1,157 +1,160 @@
 from random import randint
 from os import system
 
-class Ansi:
-    def red(string):
-        return "\033[31m" + string + "\033[0m"
-
-    def green(string):
-        return "\033[32m" + string + "\033[0m"
-
-    def yellow(string):
-        return "\033[33m" + string + "\033[0m"
-
-    def blue(string):
-        return f"\033[34m{string}\033[0m"
-
-    def magenta(string):
-        return f"\033[35m{string}\033[0m"
-
-    def cyan(string):
-        return f"\033[36m{string}\033[0m"
-
-    def white(string):
-        return f"\033[37m{string}\033[0m"
-
-class Game():
-    def __init__(self, difficulty):
-        match difficulty:
-            case 1:
-                self.row_length = 9
-                self.column_length = 9
-                self.mine_odds = 10
-            case 2:
-                self.row_length = 16
-                self.column_length = 16
-                self.mine_odds = 15
-            case 3:
-                self.row_length = 30
-                self.column_length = 16
-                self.mine_odds = 20
+class Matrix(list):
+    def __init__(self, rows, columns):
+        self.rows, self.columns = rows, columns
+        for column in range(rows):
+            self.append([' ' for i in range(columns)])
 
     def in_bounds(self, row, column):
-        if row >= 0 and row < self.column_length and column >= 0 and column < self.row_length:
+        if row >= 0 and row < self.rows and column >= 0 and column < self.columns:
             return True
         return False
 
-    def build(self):
-        # 9 means the cell has a mine.
-        # 0-8 will be the number of mines nearby.
-        self.field_matrix = []
-        self.user_matrix = []
-        for row in range(self.column_length):
-            field_row = []
-            user_row = []
-            for column in range(self.row_length):
-                if randint(0,99) > self.mine_odds:
+    def place_mines(self, odds):
+        for row in range(len(self)):
+            for element in range(len(self[row])):
+                if randint(0, 99) > odds:
                     has_mine = '0'
                 else:
-                    has_mine = '9'
-                field_row.append(has_mine)
-                user_row.append(' ')
-            self.user_matrix.append(user_row)
-            self.field_matrix.append(field_row)
+                    has_mine = ' '
+                self[row][element] = has_mine
+        return self
 
     def set_numbers(self):
-        for row in range(self.column_length):
-            for column in range(self.row_length):
-                mine_count = Game.count_mines(self, row, column)
-                if self.field_matrix[row][column] != '9':
-                    self.field_matrix[row][column] = str(mine_count)
+        for row in range(self.rows):
+            for column in range(self.columns):
+                if self[row][column] == '0':
+                    mine_count = Matrix.count_mines(self, row, column)
+                    self[row][column] = str(mine_count)
+        return self
 
     def count_mines(self, row, column):
         mine_count = 0
         for i in range(-1, 2):
             for j in range(-1, 2):
-                if Game.in_bounds(self, row + i, column + j) and self.field_matrix[row + i][column + j] == '9':
+                if self.in_bounds(row + i, column + j) and self[row + i][column + j] == ' ':
                     mine_count +=1
         return mine_count
 
+class Game():
+    def __init__(self, difficulty):
+        match difficulty:
+            case 1:
+                self.columns = 9
+                self.rows = 9
+                self.odds = 10
+            case 2:
+                self.columns = 16
+                self.rows = 16
+                self.odds = 15
+            case 3:
+                self.columns = 30
+                self.rows = 16
+                self.odds = 20
+
+        self.user_matrix = Matrix(self.rows, self.columns)
+        self.hidden_matrix = Matrix(self.rows, self.columns).place_mines(self.odds).set_numbers()
+        self.status = 'running'
+
+    def update(self, row, column):
+        revelation = self.reveal(row, column)
+
+        if self.user_matrix == self.hidden_matrix:
+            self.status = 'win'
+        elif revelation == ' ':
+            self.status = 'loss'
+        else:
+            self.status = 'running'
 
     def reveal(self, row, column):
-        if not Game.in_bounds(self, row, column):
+        if not self.user_matrix.in_bounds(row, column):
             return
-        if self.field_matrix[row][column] != '0':
-            self.user_matrix[row][column] = self.field_matrix[row][column]
 
-        if self.user_matrix[row][column] == ' ':
+        if self.hidden_matrix[row][column] != '0':
+            self.user_matrix[row][column] = self.hidden_matrix[row][column]
+
+        if self.user_matrix[row][column] == ' ' and self.hidden_matrix[row][column] != ' ':
             self.user_matrix[row][column] = '0'
             for i in range(-1,2):
                 for j in range(-1,2):
                     self.reveal(row + i, column + j)
 
-        return self.field_matrix[row][column]
+        return self.hidden_matrix[row][column]
 
+    def reveal_all_mines(self):
+        for row in range(self.rows):
+            for column in range(self.columns):
+                if self.hidden_matrix[row][column] == ' ':
+                    self.user_matrix[row][column] = 'x'
+
+class Interface():
     def colorize(string):
         match string:
-            case ' ':
-                cell = ' '
             case '0':
-                cell = Ansi.cyan(string)
+                return f"\033[37m{string}\033[0m" # white
             case '1':
-                cell = Ansi.blue(string)
+                return f"\033[36m{string}\033[0m" #Cyan
             case '2':
-                cell = Ansi.magenta(string)
-            case '9':
-                cell = Ansi.red('x')
+                return f"\033[34m{string}\033[0m" #Blue
+            case '3':
+                return f"\033[33m{string}\033[0m" #Yellow
+            case 'x':
+                return f"\033[31m{string}\033[0m" # Red
             case _:
-                cell = Ansi.yellow(string)
+                return f"\033[35m{string}\033[0m" #magenta
         return cell
 
-
-    def render_user_interface(self):
-        first_row = f"  \\ "
-        for i in range(self.row_length):
-            first_row += f" {Ansi.green(str(i))} |"
-
-        for i in range(self.column_length):
-            if i > 9:
-                first_row += f"\n{Ansi.green(str(i))} |"
-            else:
-                first_row += f"\n{Ansi.green(str(i))}  |"
-
-            for j in range(self.row_length):
-                if j > 9:
-                    first_row += f" {Game.colorize(self.user_matrix[i][j])}  |"
-                else:
-                    first_row += f" {Game.colorize(self.user_matrix[i][j])} |"
-
-        print(first_row)
-
-    def reveal_mines(self):
-        for row in range(self.column_length):
-            for column in range(self.row_length):
-                if self.field_matrix[row][column] == '9':
-                    self.reveal(row, column)
-
-def main():
-    difficulty = int(input("1 - Easy\n2 - Medium\n3 - Hard\n-> "))
-    game = Game(difficulty)
-    game.build()
-    game.set_numbers()
-
-    reveal = ''
-    while reveal != '9':
+    def render(game):
         system('clear')
-        game.render_user_interface()
-        x, y = input("\n(x y): ").split()
-        x, y = int(x), int(y)
-        reveal = game.reveal(x, y)
-    game.reveal_mines()
-    print("\n\033[31mGame over\033[0m\nAll mines:\n")
-    game.render_user_interface()
+        print('Type "exit" to exit the game.\n')
 
+        interface = f"  \\ "
+        for i in range(game.columns):
+            interface += f"\033[32m{i!s:^3}\033[0m|"
+
+        for i in range(game.rows):
+            interface += f"\n\033[32m{i!s:^3}\033[0m|"
+
+            for j in range(game.columns):
+                interface += f" {Interface.colorize(game.user_matrix[i][j])} |"
+        print(interface)
 
 
 if __name__ == '__main__':
-    main()
+
+    difficulty = int(input("1 - Easy\n2 - Medium\n3 - Hard\n-> "))
+    game = Game(difficulty)
+    Interface.render(game)
+
+    while True:
+        try:
+            row_index = input('\nChoose row index: ')
+            if row_index == 'exit':
+                break
+            column_index = input('Choose column index: ')
+            if column_index == 'exit':
+                break
+            row_index, column_index = int(row_index), int(column_index)
+        except:
+            system('clear')
+            Interface.render(game)
+            print('\n\033[31mInvalid index\033[0m')
+            continue
+
+        reveal = game.update(row_index, column_index)
+        Interface.render(game)
+
+        if game.status == 'loss':
+            game.reveal_all_mines()
+            Interface.render(game)
+            print('\n\033[31mGame over\033[0m')
+            input()
+            break
+
+        elif game.status == 'win':
+            print("\n\033[35mYou Won!\033[0m")
+            input()
+            break
+        print(game.status)
