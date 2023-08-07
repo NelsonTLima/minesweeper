@@ -108,7 +108,7 @@ class Interface():
 
     def render(game):
         system('clear')
-        print('Type "exit" to exit the game.\n')
+        print('Type "exit" to select another difficulty.\n')
 
         interface = f"  \\ "
         for i in range(game.columns):
@@ -122,21 +122,34 @@ class Interface():
         print(interface)
 
 
-if __name__ == '__main__':
+while __name__ == '__main__':
 
-    difficulty = int(input("1 - Easy\n2 - Medium\n3 - Hard\n-> "))
-    game = Game(difficulty)
-    Interface.render(game)
+    try:
+        difficulty = input('Type "exit" to exit.\n\n1 - Easy\n2 - Medium\n3 - Hard\n-> ')
+        if difficulty == 'exit':
+            break
+        difficulty = int(difficulty)
+        game = Game(difficulty)
+        Interface.render(game)
+    except:
+        system('clear')
+        print('\033[31mInvalid difficulty\033[0m')
+        continue
+
 
     while True:
         try:
             row_index = input('\nChoose row index: ')
             if row_index == 'exit':
+                system('clear')
                 break
+
+            row_index = int(row_index)
             column_index = input('Choose column index: ')
             if column_index == 'exit':
+                system('clear')
                 break
-            row_index, column_index = int(row_index), int(column_index)
+            column_index = int(column_index)
         except:
             system('clear')
             Interface.render(game)
@@ -150,11 +163,9 @@ if __name__ == '__main__':
             game.reveal_all_mines()
             Interface.render(game)
             print('\n\033[31mGame over\033[0m')
-            input()
             break
 
         elif game.status == 'win':
             print("\n\033[35mYou Won!\033[0m")
-            input()
-            break
+           break
         print(game.status)
