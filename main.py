@@ -62,11 +62,14 @@ class Game():
         revelation = self.reveal(row, column)
 
         if self.user_matrix == self.hidden_matrix:
-            self.status = 'win'
+            self.status = "\n\033[35mYou Won!\033[0m"
         elif revelation == ' ':
-            self.status = 'loss'
+            self.reveal_all_mines()
+            self.status = '\n\033[31mGame over\033[0m'
         else:
             self.status = 'running'
+
+        Interface.render(self)
 
     def reveal(self, row, column):
         if not self.user_matrix.in_bounds(row, column):
@@ -121,51 +124,61 @@ class Interface():
                 interface += f" {Interface.colorize(game.user_matrix[i][j])} |"
         print(interface)
 
+class Player():
+    def choose_difficulty():
+        while True:
+            difficulty = input('Type "exit" to exit.\n\n1 - Easy\n2 - Medium\n3 - Hard\n-> ')
+            if difficulty == 'exit':
+                break
+            elif difficulty not in ['1', '2', '3']:
+                system('clear')
+                print('\033[31mInvalid difficulty\033[0m')
+                continue
+            else:
+                return int(difficulty)
+
+    def choose_axis(game):
+        while True:
+            row_index = input('\nChoose row index: ')
+            if row_index == 'exit':
+                return 'exit', 'exit'
+
+            if row_index not in [str(i) for i in range(game.rows)]:
+                system('clear')
+                Interface.render(game)
+                print('\033[31mInvalid index\033[0m')
+                continue
+
+            else:
+                row_index = int(row_index)
+
+            column_index = input('Choose column index: ')
+            if column_index == 'exit':
+                return 'exit', 'exit'
+
+            if column_index not in [str(i) for i in range(game.columns)]:
+                system('clear')
+                Interface.render(game)
+                print('\033[31mInvalid index\033[0m')
+            else:
+                return int(row_index), int(column_index)
+
+
+        return row_index, column_index
 
 while __name__ == '__main__':
 
-    try:
-        difficulty = input('Type "exit" to exit.\n\n1 - Easy\n2 - Medium\n3 - Hard\n-> ')
-        if difficulty == 'exit':
-            break
-        difficulty = int(difficulty)
-        game = Game(difficulty)
-        Interface.render(game)
-    except:
-        system('clear')
-        print('\033[31mInvalid difficulty\033[0m')
-        continue
+    difficulty = Player.choose_difficulty()
+    if difficulty == None:
+        break
 
-
+    game = Game(difficulty)
+    Interface.render(game)
     while True:
-        try:
-            row_index = input('\nChoose row index: ')
-            if row_index == 'exit':
-                system('clear')
-                break
-
-            row_index = int(row_index)
-            column_index = input('Choose column index: ')
-            if column_index == 'exit':
-                system('clear')
-                break
-            column_index = int(column_index)
-        except:
-            system('clear')
-            Interface.render(game)
-            print('\n\033[31mInvalid index\033[0m')
-            continue
-
-        reveal = game.update(row_index, column_index)
-        Interface.render(game)
-
-        if game.status == 'loss':
-            game.reveal_all_mines()
-            Interface.render(game)
-            print('\n\033[31mGame over\033[0m')
+        row_index, column_index = Player.choose_axis(game)
+        if row_index == 'exit' or column_index == 'exit':
             break
-
-        elif game.status == 'win':
-            print("\n\033[35mYou Won!\033[0m")
-           break
+        game.update(row_index, column_index)
         print(game.status)
+        if game.status != 'running':
+            break
